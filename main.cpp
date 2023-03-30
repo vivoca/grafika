@@ -30,8 +30,29 @@ struct Data {
 using namespace std;
 
 int customCount = 0;
-Data customData[25];
+Data customData[20];
 int numberOfPoints = 5;
+Data demo1Data[] = {{-9, -8},
+                    {-6, 0},
+                    {-3, -1},
+                    {2,  4},
+                    {8,  -3}};
+
+Data demo2Data[] = {{-9, -8},
+                    {-7, 1},
+                    {-6, 0},
+                    {-4, 4},
+                    {-3, -1},
+                    {-1, 8},
+                    {0, 3},
+                    {2,  4},
+                    {3,  2},
+                    {4,  -4},
+                    {5,  -6},
+                    {6,  -2},
+                    {7,  0},
+                    {8,  -3}};
+
 GLfloat controlPoints[PMSIZE][3];
 GLfloat curvePoints[PMSIZE][3];
 
@@ -57,6 +78,7 @@ float interpolate(Data function[], float xi, int n) {
  *  Feltolti a pontok és az illeszkedo görbe adatait tartalmazo tombot
  */
 void generatePoints(Data function[], int n) {
+    numberOfPoints = n;
     for (int i = 0; i <= n; i++) {
         controlPoints[i][0] = function[i].x / 10;
         controlPoints[i][1] = function[i].y / 10;
@@ -69,25 +91,6 @@ void generatePoints(Data function[], int n) {
         curvePoints[i][1] = yi / 10;
         xi = xi + 0.01;
     }
-}
-
-/*
- *  Eldonti hogy az elore betoltott demo vagy a felhasznalo megadott pontjaira rajzol
- */
-void generatePointsBase(bool customData, int numberOfCustomPoints, Data customPoints[]) {
-    if (customData) {
-        numberOfPoints = numberOfCustomPoints;
-        generatePoints(customPoints, numberOfPoints);
-    } else {
-        Data function[] = {{-9, -8},
-                           {-6, 0},
-                           {-3, -1},
-                           {2,  4},
-                           {8,  -3}};
-        numberOfPoints = 5;
-        generatePoints(function, numberOfPoints);
-    }
-
 }
 
 
@@ -150,13 +153,18 @@ static void psKey(unsigned char key, int x, int y) {
         }
         case '1': {
             // Demo
-            generatePointsBase(false, 0, 0);
+            generatePoints(demo1Data, 5);
             break;
         }
         case '2': {
+            // Demo
+            generatePoints(demo2Data, 14);
+            break;
+        }
+        case '7': {
             // Sajat pontok
             if (customCount != 0) {
-                generatePointsBase(true, customCount, customData);
+                generatePoints(customData, customCount);
             } else {
                 cout << "\nHiba: Nincsenek meghatarozva sajat pontok!";
             }
@@ -167,18 +175,19 @@ static void psKey(unsigned char key, int x, int y) {
 }
 
 void printMessage() {
-    printf("Grafika beadando 2023 - Gorbe rajzolas Lagrange polinom hasznalataval\n\r");
-    printf("Egyud Vivien - C11M1L\n\r");
+    cout << "Grafika beadando 2023 - Gorbe rajzolas Lagrange polinom hasznalataval\n\r";
+    cout << "Egyud Vivien - C11M1L\n\r";
     for (int k = 0; k < 51; k++) {
-        printf("*");
+        cout << "*";
     }
-    printf("\n\r * 0 - Kilepes");
-    printf("\n\r * 1 - Demo elore beallitott pontokkal");
-    printf("\n\r * 2 - Gorbe rajzolas sajat pontokra\n");
+    cout << "\n\r * 0 - Kilepes";
+    cout << "\n\r * 1 - Demo elore beallitott pontokkal (5)";
+    cout << "\n\r * 2 - Demo elore beallitott pontokkal (14)";
+    cout << "\n\r * 7 - Gorbe rajzolas sajat pontokra\n";
     for (int k = 0; k < 51; k++) {
-        printf("*");
+        cout << "*";
     }
-    printf("\n");
+    cout << "\n";
 }
 
 
@@ -195,13 +204,19 @@ int main(int argc, char *argv[]) {
         case 1:
             cout << "\nDemo pontokra rajzolas: ";
             cout << "\n{ {-9, -8}, {-6, 0}, {-3, -1}, {2, 4}, {8, -3} }";
-            generatePointsBase(false, 0, 0);
+            generatePoints(demo1Data, 5);
             break;
         case 2:
+            cout << "\nDemo pontokra rajzolas: ";
+            cout << "\n{{-9, -8}, {-7, 1}, {-6, 0}, {-4, 4}, {-3, -1}, {-1, 8},"
+                    "{0, 3}, {2, 4}, {3, 2}, {4, -4}, {5, -6}, {6, -2}, {7, 0}, {8, -3}}";
+            generatePoints(demo2Data, 14);
+            break;
+        case 7:
             // todo ellenőrizni hogy 25-nél ne legyen több pont
             // todo ellenőrizni hogy 10?nél ne legyen nagyobb? ezt meg kell nézni
             // todo egy x csak egyszer szerepelhet
-            cout << "\nMennyi pontra rajzoljon gorbet? (Max 25) ";
+            cout << "\nMennyi pontra rajzoljon gorbet? (Max 20) ";
             cin >> customCount;
             cout << "\nAdd meg a szamokat enterrel elvalasztva (x1 y1 x2 y2 ... sorrendben) \n";
             cout
@@ -216,7 +231,7 @@ int main(int argc, char *argv[]) {
                 cin >> inputY;
                 customData[i].y = inputY;
             }
-            generatePointsBase(true, customCount, customData);
+            generatePoints(customData, customCount);
             break;
     }
 
