@@ -1,90 +1,51 @@
-#ifdef __APPLE__
-/* Defined before OpenGL and GLUT includes to avoid deprecation messages */
+/*
+ * Grafika beadando 2023 - Gorbe rajzolas Lagrange polinom hasznalataval
+ *
+ * Egyud Vivien - C11M1L
+ *
+ * A program celja 2D görbe kirajzolasa pontokra Lagrange polinom segitsegevel.
+ *
+ * A program alapvető interrakciora kepes a lentebb irtak alapjan
+ * Kilepes : 0
+ * Demo elore beallitott pontokkal : 1
+ * Gorbe rajzolas sajat pontokra : 2
+ */
+
+//#ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
-#define GLFW_INCLUDE_GLCOREARB
-
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
-// #else
-//  #include <GL/gl.h>
-// #include <GL/glut.h>
-#endif
-
-#include "logs.h"
+//#include <GLUT/glut.h>
+//#else
+//#include <GL/glut.h>
+//#endif
+#include <GLUT/glut.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <iostream>
-#include <fstream>
 
-const size_t WIDTH = 440;
-const size_t HEIGHT = 440;
-const char *WINDOW_NAME = "OpenGL Explorer";
+#define PMSIZE 200
 
-const char *vertexShaderSource = "#version 410 core\n"
-                                 "layout (location = 0) in vec3 aPos;\n"
-                                 "void main()\n"
-                                 "{\n"
-                                 "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-                                 "}\0";
-
-const char *fragmentShaderSource = "#version 410 core\n"
-                                   "out vec4 FragColor;\n"
-                                   "\n"
-                                   "void main()\n"
-                                   "{\n"
-                                   "    FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-                                   "} ";
-
-/*
- * Callback to handle the "close window" event, once the user pressed the Escape key.
- */
-static void quitCallback(GLFWwindow *window, int key, int scancode, int action, int _mods) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
-
-/*
- * Initializes the window and viewport via GLFW.
- * The viewport takes the all window.
- * If an error happens, the function returns `NULL` but **does not** free / terminate the GLFW library.
- * Then, do not forget to call `glfwTerminate` if this function returns `NULL`.
- */
-GLFWwindow *initializeWindow() {
-    // Minimum target is OpenGL 4.1
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, WINDOW_NAME, NULL, NULL);
-    if (!window) {
-        error("window creation failed");
-        return NULL;
-    }
-    // Close the window as soon as the Escape key has been pressed
-    glfwSetKeyCallback(window, quitCallback);
-    // Makes the window context current
-    glfwMakeContextCurrent(window);
-
-    glViewport( 0, 0, WIDTH, HEIGHT ); // specifies the part of the window to which OpenGL will draw (in pixels), convert from normalised to pixels
-    glMatrixMode( GL_PROJECTION ); // projection matrix defines the properties of the camera that views the objects in the world coordinate frame. Here you typically set the zoom factor, aspect ratio and the near and far clipping planes
-    glLoadIdentity( ); // replace the current matrix with the identity matrix and starts us a fresh because matrix transforms such as glOrpho and glRotate cumulate, basically puts us at (0, 0, 0)
-    glOrtho( 0, WIDTH, 0, HEIGHT, 0, 1 ); // essentially set coordinate system
-    glMatrixMode( GL_MODELVIEW ); // (default matrix mode) modelview matrix defines how your objects are transformed (meaning translation, rotation and scaling) in your world
-    glLoadIdentity( ); // same as above comment
-
-    return window;
-}
-
-using namespace std;
 struct Data {
     float x, y;
 };
+using namespace std;
 
-double interpolate(Data function[], int xi, int n) {
-    double result = 0;
+int customCount = 0;
+Data customData[25];
+int numberOfPoints = 5;
+GLfloat controlPoints[PMSIZE][3];
+GLfloat curvePoints[PMSIZE][3];
+
+
+/*
+ *  Kiszamolja Lagrange-polinom segitsegevel az f(xi)-t
+ */
+float interpolate(Data function[], float xi, int n) {
+    float result = 0;
     for (int i = 0; i < n; i++) {
-        double term = function[i].y;
+        float term = function[i].y;
         for (int j = 0; j < n; j++) {
             if (j != i) {
-                term = term * (xi - function[j].x) / double(function[i].x - function[j].x);
+                term = term * (xi - function[j].x) / float(function[i].x - function[j].x);
             }
         }
         result += term;
@@ -92,124 +53,186 @@ double interpolate(Data function[], int xi, int n) {
     return result;
 }
 
-float *getPointArray() {
-    int n = 4;
-    Data function[] = {{1, 2},
-                       {2, 3},
-                       {3, 1},
-                       {4, 4}};
-    cout << interpolate(function, 3, n) << endl;
-
-    int j = 0;
-    static float vertices[18] = {
-            2, 1, 0,
-            1, 3, 0,
-            5, 5, 0,
-            3, 1, 0,
-            0.5, 0.5, 0
-    };
-
-
-    for (int i = 0; i < n; i++) {
-        vertices[j] = function[i].x/10;
-        j++;
-        vertices[j] = function[i].y/10;
-        j++;
-        vertices[j] = 0;
-        j++;
+/*
+ *  Feltolti a pontok és az illeszkedo görbe adatait tartalmazo tombot
+ */
+void generatePoints(Data function[], int n) {
+    for (int i = 0; i <= n; i++) {
+        controlPoints[i][0] = function[i].x / 10;
+        controlPoints[i][1] = function[i].y / 10;
     }
 
+    float xi = -1.0;
+    for (int i = 0; i < 200; i++) {
+        curvePoints[i][0] = xi;
+        float yi = interpolate(function, xi * 10, n);
+        curvePoints[i][1] = yi / 10;
+        xi = xi + 0.01;
+    }
+}
 
-    for (int i = 0; i < (n * 4); i++) {
-        cout << "*(vertices + " << i << ") : ";
-        cout << *(vertices + i) << endl;
+/*
+ *  Eldonti hogy az elore betoltott demo vagy a felhasznalo megadott pontjaira rajzol
+ */
+void generatePointsBase(bool customData, int numberOfCustomPoints, Data customPoints[]) {
+    if (customData) {
+        numberOfPoints = numberOfCustomPoints;
+        generatePoints(customPoints, numberOfPoints);
+    } else {
+        Data function[] = {{-9, -8},
+                           {-6, 0},
+                           {-3, -1},
+                           {2,  4},
+                           {8,  -3}};
+        numberOfPoints = 5;
+        generatePoints(function, numberOfPoints);
     }
 
-    return vertices;
 }
 
 
-int main() {
-
-    if (!glfwInit()) {
-        std::cerr << "ERROR: could not start GLFW3" << std::endl;
-        return -1; // Initialize the lib
-    }
-
-    GLFWwindow *window = initializeWindow();
-    if (!window) {
-        glfwTerminate();
-        return -1;
-    }
-
-    const GLubyte *renderer = glGetString(GL_RENDERER);
-    const GLubyte *version = glGetString(GL_VERSION);
-    std::cout << "Renderer: " << renderer << std::endl;
-    std::cout << "OpenGL version supported: " << version << std::endl;
-
-
-    float *vertices;
-    vertices = getPointArray();
-
-    // create vertex buffer
-    unsigned int VBO;
-    glGenBuffers(1, &VBO);
-    // 0. copy our vertices array in a buffer for OpenGL to use
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    unsigned int VAO;
-    glGenVertexArrays(1, &VAO);
-    // 1. bind Vertex Array Object
-    glBindVertexArray(VAO);
-    // 1. then set the vertex attributes pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) nullptr);
-    glEnableVertexAttribArray(0);
-
-
-
-
-
-    // create vertex shader - transform 3D coordinates into different 3D coordinates
-    unsigned int vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, nullptr);
-    glCompileShader(vertexShader);
-
-    // fragment shader - calculate the final color of a pixel
-    unsigned int fragmentShader;
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
-    glCompileShader(fragmentShader);
-
-    // linking shader program object (multiple shaders combined)
-    unsigned int shaderProgram;
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-
-    while (!glfwWindowShouldClose(window)) {
-
-        // wipe the drawing surface clear
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glUseProgram(shaderProgram);
-        glBindVertexArray(VAO);
-        // draw points 0-3 from the currently bound VAO with current in-use shader
-        glDrawArrays(GL_POINTS, 0, 5);
-
-
-        // put the stuff we've been drawing onto the display
-        glfwSwapBuffers(window);
-        // update other events like input handling
-        glfwPollEvents();
-    }
-
-    // ... here, the user closed the window
-    glfwTerminate();
-    return 0;
+void psInit() {
+    glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
 }
+
+static void psDisplay() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    //======================================================
+    /*
+     * Felrajzoljuk a koordinata rendszert
+     */
+    glLineWidth(0.2);
+    glColor3f(0.5, 0.5, 0.5);
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(-1.0, 0.0, 0.0);
+    glVertex3f(1.0, 0.0, 0.0);
+    glEnd();
+    glLineWidth(0.2);
+    glColor3f(0.5, 0.5, 0.5);
+    glBegin(GL_LINE_STRIP);
+    glVertex3f(0.0, -1.0, 0.0);
+    glVertex3f(0.0, 1.0, 0.0);
+    glEnd();
+
+
+    /*
+     *  Megjelenitjuk a pontmatrix elemeit
+     */
+    glPointSize(6);
+    glColor3f(0.0, 1.0, 0.0);
+    glBegin(GL_POINTS);
+    for (int i = 0; i < numberOfPoints; i++) {
+        glVertex3fv((GLfloat *) &controlPoints[i][0]);
+    }
+    glEnd();
+
+
+    /*
+     *  A megadott pontokbol kiszamoljuk és abrazoljuk a fuggveny tobbi pontjat is
+     */
+    glLineWidth(0.2);
+    glColor3f(1.0, 0.0, 0.0);
+    glBegin(GL_LINE_STRIP);
+    for (int i = 0; i < 200; i++) {
+        glVertex3f(curvePoints[i][0], curvePoints[i][1], 0.0);
+    }
+    glEnd();
+    glFinish();
+}
+
+
+static void psKey(unsigned char key, int x, int y) {
+    switch (key) {
+        case '0': {
+            exit(0);
+            break;
+        }
+        case '1': {
+            // Demo
+            generatePointsBase(false, 0, 0);
+            break;
+        }
+        case '2': {
+            // Sajat pontok
+            if (customCount != 0) {
+                generatePointsBase(true, customCount, customData);
+            } else {
+                cout << "\nHiba: Nincsenek meghatarozva sajat pontok!";
+            }
+            break;
+        }
+    }
+    glutPostRedisplay();
+}
+
+void printMessage() {
+    printf("Grafika beadando 2023 - Gorbe rajzolas Lagrange polinom hasznalataval\n\r");
+    printf("Egyud Vivien - C11M1L\n\r");
+    for (int k = 0; k < 51; k++) {
+        printf("*");
+    }
+    printf("\n\r * 0 - Kilepes");
+    printf("\n\r * 1 - Demo elore beallitott pontokkal");
+    printf("\n\r * 2 - Gorbe rajzolas sajat pontokra\n");
+    for (int k = 0; k < 51; k++) {
+        printf("*");
+    }
+    printf("\n");
+}
+
+
+int main(int argc, char *argv[]) {
+    printMessage();
+
+    int x;
+    cout << "Valassz az opciok kozul: ";
+    cin >> x;
+
+    switch (x) {
+        case 0:
+            return EXIT_SUCCESS;
+        case 1:
+            cout << "\nDemo pontokra rajzolas: ";
+            cout << "\n{ {-9, -8}, {-6, 0}, {-3, -1}, {2, 4}, {8, -3} }";
+            generatePointsBase(false, 0, 0);
+            break;
+        case 2:
+            // todo ellenőrizni hogy 25-nél ne legyen több pont
+            // todo ellenőrizni hogy 10?nél ne legyen nagyobb? ezt meg kell nézni
+            // todo egy x csak egyszer szerepelhet
+            cout << "\nMennyi pontra rajzoljon gorbet? (Max 25) ";
+            cin >> customCount;
+            cout << "\nAdd meg a szamokat enterrel elvalasztva (x1 y1 x2 y2 ... sorrendben) \n";
+            cout
+                    << "\nA tengelyek -10 es 10 kozott latszodnak, az ennel kisebb illetve nagyobb pontok nem latszodnak az ablakban! \n";
+            for (int i = 0; i < customCount; i++) {
+                int inputX;
+                cout << "x" << i + 1 << ": ";
+                cin >> inputX;
+                customData[i].x = inputX;
+                int inputY;
+                cout << "y" << i + 1 << ": ";
+                cin >> inputY;
+                customData[i].y = inputY;
+            }
+            generatePointsBase(true, customCount, customData);
+            break;
+    }
+
+    glutInit(&argc, argv);
+    glutInitWindowSize(1024, 768);
+    glutInitWindowPosition(250, 250);
+    glutInitDisplayMode(GLUT_RGB);
+
+    glutCreateWindow("me-grafika-beadando");
+    psInit();
+    glutDisplayFunc(psDisplay);
+    glutKeyboardFunc(psKey);
+
+    glutMainLoop();
+
+    return EXIT_SUCCESS;
+}
+
+
